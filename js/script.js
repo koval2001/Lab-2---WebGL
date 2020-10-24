@@ -1,138 +1,193 @@
-var W=1200, H=640;//размеры холста
+import * as THREE from './three.js-master/build/three.module.js';
+import Stats from './three.js-master/examples/jsm/libs/stats.module.js';
+import { GUI } from './three.js-master/examples/jsm/libs/dat.gui.module.js';
+import { TrackballControls } from './three.js-master/examples/jsm/controls/TrackballControls.js';
 
-// W=parseInt(document.body.clientWidth);
-// H=parseInt(document.body.clientHeight);
-
-var scene = new THREE.Scene();//создание новой сцены
-var camera = new THREE.PerspectiveCamera(1, W/H, 1, 1000);
-// создание камеры с параметрами(почитай)
-
-var renderer = new THREE.WebGLRenderer();
-// рендер сцены и елементов
-renderer.setSize(W, H);
-document.body.appendChild(renderer.domElement);//создание дом елемента в боди
-
-//texture
-var load = new THREE.TextureLoader().load("image/e.jpg");//подгрузка текстуры
-load.anisotropy = 8;
-var material = new THREE.MeshBasicMaterial({
-    map: load,
-    overdraw: true
-});//создание "материала" для фигуры(заливка)
-
-//light
-var spotLight = new THREE.SpotLight( 0xffffff );//добавление прямого белого света
-spotLight.position.set( -40, 60, -10 );//позиция источника света на сцене
-scene.add(spotLight );//добавление света на сцену
-
-var pointLight = new THREE.PointLight( 0xff0000, 1, 100 );//добавление точечного источника красного света
-pointLight.position.set( 10, 10, 10 );//позиция источника
-scene.add( pointLight );
-
-//texture for skybox
-var imagePrefix = "image/";
-var directions  = ["right", "left", "front", "back", "down","top" ];
-var imageSuffix = ".png";
-
-var materialArray = [];
-for (var i = 0; i < 6; i++)
-    materialArray.push( new THREE.MeshBasicMaterial({
-        map: THREE.ImageUtils.loadTexture( imagePrefix + directions[i] + imageSuffix ),
-        side: THREE.BackSide
-    }));
-//skybox
-var skyGeometry = new THREE.CubeGeometry( 25, 25, 25 );//создание геометрии куба со сторонами 25 25 25
-var skyMaterial = new THREE.MeshFaceMaterial( materialArray );//закраска куба в текстуру
-var skyBox = new THREE.Mesh( skyGeometry, skyMaterial );//создание куба
-skyBox.rotation.x += Math.PI/2;
-scene.add( skyBox );
-
-function getRandomInt(min, max){return Math.floor(Math.random() * (max - min));}//функция рандома
-
-function CreateOctahedron(){//реализация списков через массивы(в WEBGl нет списков)
-    var octahedrons = Array();
-    for (var i=0; i <= 2; i++) {
-        var rand = getRandomInt(0,i*0.5)
-        //octahedron
-        var octahedronGeometry = new THREE.OctahedronGeometry(2,1);
-        var octahedronMaterial = new THREE.MeshLambertMaterial({color: 0xff0000});
-        var octahedron = new THREE.Mesh(octahedronGeometry, octahedronMaterial);
-
-        octahedron.position.y =1;
-        octahedron.position.x = -Math.PI*(i+rand);
-        octahedron.position.z = -Math.PI*(rand-2);
-
-        scene.add(octahedron);
-        octahedrons.push(octahedron);
-    }
-
-    return octahedrons;
-}
-
-//surfaceGeometry
-var surfaceGeometry = new THREE.ParametricGeometry(surfaceFunction, 64, 64);//создание геометрии поверхности за функцией и указывание ее размеров на сцене
-// var material1 = new THREE.LineBasicMaterial( {color: 0xFFCF40, wireframe: true} );
-var surface = new THREE.Mesh( surfaceGeometry, material );//создание поверхности
-scene.add(surface);//добавление ее на сцену
-
-function CreateDodecahedron(){
-    var dodecahedrons = Array();
-    for (var i=0; i < 2; i++) {
-        var rand =getRandomInt(0,i+1);
-        //dodecahedron
-        var dodecahedronGeometry = new THREE.DodecahedronGeometry(2,1);
-        // var sphereMaterial = new THREE.MeshLambertMaterial({color: 0x7777ff});
-        var material = new THREE.MeshBasicMaterial( { color: 0xffff00, wireframe: true } );
-        var dodecahedron = new THREE.SkinnedMesh(dodecahedronGeometry,material);
-
-        dodecahedron.position.x=-3.5*rand;
-        dodecahedron.position.z=1.96+Math.PI*(i-2);
-        dodecahedron.position.y=1.96;
-        dodecahedron.rotation.y += 0.005;
-        dodecahedron.rotation.x += 0.0075;
-        scene.add(dodecahedron);
-        dodecahedrons.push(dodecahedron);
-    }
-    return dodecahedrons;
-}
-
-
-
-
-function surfaceFunction( u, v ) {//функция, которая математически описывает нашу поверхность
-    var x,y,z;  // A point on the surface, calculated from u,v.
-    // u  and v range from 0 to 1.
-    x = 20 * (u - 0.5);  // x and z range from -10 to 10
-    y = -20 * (v - 0.5);
-    z = (Math.sin (x) * Math.sqrt (y));//изменить только это значение, поменявши у на z
-    return new THREE.Vector3( x, y, z );
-}
-
-camera.position.z = 500;//позиция камеры на сцене
-// camera.position.y = 200;
-
-var x=0, y=0;//позиция мышки
-
-document.addEventListener('mousemove', function(event){
-    x=parseInt(event.offsetX);
-    y=parseInt(event.offsetY);
-    spotLight.position.set( -40+x, 60, -10 );//вращение источника света за мышкой
-});
-
-var render = function () {
-    requestAnimationFrame(render);
-
-    CreateOctahedron();
-    CreateDodecahedron();
-
-    camera.position.x=x;//вращение камеры за мышкой
-    camera.position.y=y;//вращение камеры за мышкой
-    camera.lookAt( surface.position );//предмет слежения камеры - поверхность
-
-    spotLight.rotation.y=+0.002;
-    spotLight.rotation.x=-0.0004;
-
-    renderer.render(scene, camera);//рендер камеры и сцены
+var perspectiveCamera, orthographicCamera, controls, scene, renderer, stats;
+var params = {
+    orthographicCamera: false
 };
+var frustumSize = 400;
 
-render();
+let octahedron;
+let dodecahedron;
+let camera;
+
+init();
+animate();
+
+function init() {
+    var aspect = window.innerWidth / window.innerHeight;
+    perspectiveCamera = new THREE.PerspectiveCamera( 60, aspect, 1, 10000 );
+    perspectiveCamera.position.z = 200;
+    orthographicCamera = new THREE.OrthographicCamera( frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, 1, 1000 );
+    orthographicCamera.position.z = 200;
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color( 0xcccccc );
+
+    var dodecahedronGeometry = new THREE.DodecahedronGeometry( 50 );
+    var material = new THREE.MeshPhongMaterial( { color: 0xffff00, wireframe: true } );
+    dodecahedron = new THREE.Mesh(dodecahedronGeometry, material);
+    dodecahedron.position.y = -100;
+    dodecahedron.position.x = 0;
+    dodecahedron.position.z = 0;
+    dodecahedron.updateMatrix()
+    dodecahedron.matrixAutoUpdate = true
+    scene.add(dodecahedron)
+
+    var octahedronGeometry = new THREE.OctahedronGeometry( 50 );
+    var octahedronMaterial = new THREE.MeshPhongMaterial({color: 0xff0000});
+    octahedron = new THREE.Mesh(octahedronGeometry, octahedronMaterial);
+    octahedron.position.y = 100;
+    octahedron.position.x = 0;
+    octahedron.position.z = 0;
+    octahedron.updateMatrix();
+    octahedron.matrixAutoUpdate = true
+    scene.add(octahedron)
+
+    var planeGeo = new THREE.PlaneGeometry( 500, 500 );
+
+    var planeTop = new THREE.Mesh( planeGeo, new THREE.MeshPhongMaterial( { color: 0xffffff } ) );
+    planeTop.position.y = 250;
+    planeTop.rotateX( Math.PI / 2 );
+    scene.add( planeTop );
+
+    var planeBottom = new THREE.Mesh( planeGeo, new THREE.MeshPhongMaterial( { color: 0xffffff } ) );
+    planeBottom.position.y = -250;
+    planeBottom.rotateX( - Math.PI / 2 );
+    scene.add( planeBottom );
+
+    var planeFront = new THREE.Mesh( planeGeo, new THREE.MeshPhongMaterial( { color: 0x7f7fff } ) );
+    planeFront.position.z = 250;
+    planeFront.position.y = 0;
+    planeFront.rotateY( Math.PI );
+    scene.add( planeFront );
+
+    var planeBack = new THREE.Mesh( planeGeo, new THREE.MeshPhongMaterial( { color: 0x7f7fff } ) );
+    planeFront.position.z = -250;
+    planeFront.position.y = 0;
+    planeFront.rotateY( Math.PI );
+    scene.add( planeFront );
+
+    var planeRight = new THREE.Mesh( planeGeo, new THREE.MeshPhongMaterial( { color: 0x00ff00 } ) );
+    planeRight.position.x = 250;
+    planeRight.position.y = 0;
+    planeRight.rotateY( - Math.PI / 2 );
+    scene.add( planeRight );
+
+    var planeLeft = new THREE.Mesh( planeGeo, new THREE.MeshPhongMaterial( { color: 0xff0000 } ) );
+    planeLeft.position.x = - 250;
+    planeLeft.position.y = 0;
+    planeLeft.rotateY( Math.PI / 2 );
+    scene.add( planeLeft );
+
+    var geometry = new THREE.ParametricGeometry( CreatePlot(100, 100), 200, 200 );
+    var material = new THREE.MeshPhongMaterial( {
+        color: 0xa4a4a4,
+        side: THREE.DoubleSide,
+    } );
+    var plot = new THREE.Mesh( geometry, material );
+    plot.doubleSided = true;
+    scene.add( plot );
+
+    var light = new THREE.DirectionalLight( 0xffffff );
+    light.position.set( 1, 1, 1 );
+    scene.add( light );
+    var light = new THREE.DirectionalLight( 0x002288 );
+    light.position.set( - 1, - 1, - 1 );
+    scene.add( light );
+    var light = new THREE.AmbientLight( 0x555555 );
+    scene.add( light );
+
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.setPixelRatio( window.devicePixelRatio );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+    stats = new Stats();
+    document.body.appendChild( stats.dom );
+
+    var gui = new GUI();
+    gui.add( params, 'orthographicCamera' ).name( 'use orthographic' ).onChange( function ( value ) {
+        controls.dispose();
+        createControls( value ? orthographicCamera : perspectiveCamera );
+    } );
+
+    window.addEventListener( 'resize', onWindowResize, false );
+    createControls( perspectiveCamera );
+}
+
+function createControls( camera ) {
+    controls = new TrackballControls( camera, renderer.domElement );
+    controls.rotateSpeed = 4.0;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 0.8;
+}
+
+function onWindowResize() {
+    var aspect = window.innerWidth / window.innerHeight;
+    perspectiveCamera.aspect = aspect;
+    perspectiveCamera.updateProjectionMatrix();
+    orthographicCamera.left = - frustumSize * aspect / 2;
+    orthographicCamera.right = frustumSize * aspect / 2;
+    orthographicCamera.top = frustumSize / 2;
+    orthographicCamera.bottom = - frustumSize / 2;
+    orthographicCamera.updateProjectionMatrix();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    controls.handleResize();
+}
+
+function animate() {
+    requestAnimationFrame( animate );
+    controls.update();
+    stats.update();
+    camera = ( params.orthographicCamera ) ? orthographicCamera : perspectiveCamera;
+    renderer.render( scene, camera );
+}
+
+document.onkeypress = e => {
+    let changed = false
+    let x_axis, y_axis, quaternion
+    switch (e.code) {
+        case 'KeyW':
+            x_axis = new THREE.Vector3( 1, 0, 0 );
+            quaternion = new THREE.Quaternion;
+            camera.position.applyQuaternion(quaternion.setFromAxisAngle(x_axis, 0.5));
+            camera.up.applyQuaternion(quaternion.setFromAxisAngle(x_axis, 0.5));
+            break
+        case 'KeyS':
+            x_axis = new THREE.Vector3( -1, 0, 0 );
+            quaternion = new THREE.Quaternion;
+            camera.position.applyQuaternion(quaternion.setFromAxisAngle(x_axis, 0.5));
+            camera.up.applyQuaternion(quaternion.setFromAxisAngle(x_axis, 0.5));
+            break
+        case 'KeyA':
+            y_axis = new THREE.Vector3( 0, 1, 0 );
+            quaternion = new THREE.Quaternion;
+            camera.position.applyQuaternion(quaternion.setFromAxisAngle(y_axis, 0.5));
+            camera.up.applyQuaternion(quaternion.setFromAxisAngle(y_axis, 0.5));
+            break
+        case 'KeyD':
+            y_axis = new THREE.Vector3( 0, -1, 0 );
+            quaternion = new THREE.Quaternion;
+            camera.position.applyQuaternion(quaternion.setFromAxisAngle(y_axis, 0.5));
+            camera.up.applyQuaternion(quaternion.setFromAxisAngle(y_axis, 0.5));
+            break
+    }
+}
+
+function CreatePlot(w, h) {
+
+    return (posX, posY, target) => {
+        let x = posX * w
+        let y = posY * h
+        let z
+
+        z = Math.sin(x) * Math.sqrt(y)
+
+        y = y - h / 2;
+        x = x - w / 2
+
+        target.set(x, y, z)
+    }
+}
